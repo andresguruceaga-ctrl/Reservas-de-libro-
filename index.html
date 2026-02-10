@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reserva tu Libro - Mi Familia la Mejor</title>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5e6d3 0%, #ffd4a3 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #ff9a56 0%, #ff6b6b 100%);
+            padding: 40px 30px;
+            text-align: center;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.2em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.95;
+        }
+
+        .content {
+            padding: 40px 30px;
+        }
+
+        .availability {
+            background: #fff3e0;
+            border-left: 5px solid #ff9a56;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 5px;
+        }
+
+        .availability h2 {
+            color: #ff6b6b;
+            margin-bottom: 10px;
+            font-size: 1.5em;
+        }
+
+        .stock-info {
+            font-size: 2em;
+            font-weight: bold;
+            color: #333;
+            margin: 10px 0;
+        }
+
+        .stock-info .available {
+            color: #4caf50;
+        }
+
+        .stock-info .reserved {
+            color: #ff9a56;
+        }
+
+        .form-section {
+            background: #f9f9f9;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #ff9a56;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #ff9a56 0%, #ff6b6b 100%);
+            color: white;
+            padding: 15px 40px;
+            border: none;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(255, 107, 107, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+            position: relative;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-content h3 {
+            color: #ff6b6b;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+
+        .confirmation-details {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        .confirmation-details p {
+            margin: 10px 0;
+            font-size: 1.1em;
+        }
+
+        .confirmation-details strong {
+            color: #ff6b6b;
+        }
+
+        .close-btn {
+            background: #4caf50;
+            margin-top: 20px;
+        }
+
+        .admin-section {
+            margin-top: 40px;
+            padding: 30px;
+            background: #f0f0f0;
+            border-radius: 10px;
+        }
+
+        .admin-section h3 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .reservation-list {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .reservation-item {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .reservation-item:last-child {
+            border-bottom: none;
+        }
+
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .success-icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 600px) {
+            .header h1 {
+                font-size: 1.5em;
+            }
+
+            .content {
+                padding: 20px 15px;
+            }
+
+            .form-section {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📚 Reserva tu Libro</h1>
+            <p style="font-size: 1.2em; font-weight: 600;">Mi Familia la Mejor Familia del Mundo</p>
+            <p style="font-size: 0.9em; margin-top: 10px;">Por Denisse Gabriela Delgado Ramos</p>
+            <p style="font-size: 1.3em; margin-top: 15px; font-weight: bold; background: rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 25px; display: inline-block;">💰 Precio: 15€ / 16$</p>
+        </div>
+
+        <div class="content">
+            <div class="availability">
+                <h2>📊 Disponibilidad</h2>
+                <div class="stock-info">
+                    <span class="available" id="availableBooks">100</span> disponibles
+                </div>
+                <div class="stock-info" style="font-size: 1.2em;">
+                    <span class="reserved" id="reservedBooks">0</span> reservados
+                </div>
+            </div>
+
+            <div id="errorMessage" class="error-message"></div>
+
+            <div class="form-section">
+                <h2 style="margin-bottom: 25px; color: #333;">🎯 Formulario de Reserva</h2>
+                
+                <div class="form-group">
+                    <label for="name">Nombre Completo *</label>
+                    <input type="text" id="name" placeholder="Ej: María García" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Correo Electrónico *</label>
+                    <input type="email" id="email" placeholder="ejemplo@correo.com" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="phone">Teléfono *</label>
+                    <input type="tel" id="phone" placeholder="Ej: 809-555-1234" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="country">País *</label>
+                    <input type="text" id="country" placeholder="Ej: República Dominicana" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="city">Ciudad *</label>
+                    <input type="text" id="city" placeholder="Ej: Santo Domingo" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="quantity">Cantidad de Libros *</label>
+                    <select id="quantity" required>
+                        <option value="">Selecciona cantidad</option>
+                        <option value="1">1 libro</option>
+                        <option value="2">2 libros</option>
+                        <option value="3">3 libros</option>
+                        <option value="4">4 libros</option>
+                        <option value="5">5 libros</option>
+                    </select>
+                </div>
+
+                <button class="btn" id="reserveBtn" onclick="makeReservation()">
+                    Reservar Ahora
+                </button>
+            </div>
+
+            <div class="admin-section">
+                <h3>📋 Listado de Reservas</h3>
+                <div class="reservation-list" id="reservationList">
+                    <p style="text-align: center; color: #999;">Aún no hay reservas</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="confirmationModal">
+        <div class="modal-content">
+            <div class="success-icon">✅</div>
+            <h3>¡Reserva Confirmada!</h3>
+            <div class="confirmation-details" id="confirmationDetails"></div>
+            <p style="color: #666; margin-top: 15px;">
+                Tu reserva ha sido registrada exitosamente.<br>
+                <strong style="color: #ff6b6b;">Nos pondremos en contacto contigo para coordinar el pago.</strong>
+            </p>
+            <button class="btn close-btn" onclick="closeModal()">Entendido</button>
+        </div>
+    </div>
+
+    <script>
+        // Tu configuración de Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyD729E8q5OWu60WN13fO0C5FqhKDzCEecY",
+            authDomain: "reserva-de-libro.firebaseapp.com",
+            databaseURL: "https://reserva-de-libro-default-rtdb.firebaseio.com",
+            projectId: "reserva-de-libro",
+            storageBucket: "reserva-de-libro.firebasestorage.app",
+            messagingSenderId: "456501781548",
+            appId: "1:456501781548:web:75aaedb5cca488c7369d89"
+        };
+
+        // Inicializar Firebase
+        let database;
+        try {
+            firebase.initializeApp(firebaseConfig);
+            database = firebase.database();
+            console.log('✅ Firebase conectado correctamente');
+        } catch (error) {
+            console.log('⚠️ Firebase no disponible, usando almacenamiento local');
+        }
+
+        const TOTAL_BOOKS = 100;
+        let reservations = [];
+        let currentReservation = null;
+
+        async function loadReservations() {
+            try {
+                if (database) {
+                    // Cargar desde Firebase
+                    const snapshot = await database.ref('reservations').once('value');
+                    if (snapshot.exists()) {
+                        const data = snapshot.val();
+                        reservations = Object.keys(data).map(key => ({
+                            ...data[key],
+                            firebaseKey: key
+                        })).sort((a, b) => b.id - a.id);
+                    }
+                } else {
+                    // Fallback a localStorage
+                    const stored = localStorage.getItem('book-reservations');
+                    if (stored) {
+                        reservations = JSON.parse(stored);
+                    }
+                }
+            } catch (error) {
+                console.log('Error cargando reservas:', error);
+                // Fallback a localStorage
+                const stored = localStorage.getItem('book-reservations');
+                if (stored) {
+                    reservations = JSON.parse(stored);
+                }
+            }
+            updateDisplay();
+        }
+
+        async function saveReservation(reservation) {
+            try {
+                // Guardar en localStorage como respaldo
+                localStorage.setItem('book-reservations', JSON.stringify(reservations));
+                
+                if (database) {
+                    // Guardar en Firebase
+                    const newReservationRef = database.ref('reservations').push();
+                    await newReservationRef.set(reservation);
+                    console.log('✅ Reserva guardada en Firebase');
+                }
+            } catch (error) {
+                console.log('⚠️ Error guardando en Firebase:', error);
+            }
+        }
+
+        // Escuchar cambios en tiempo real
+        if (database) {
+            database.ref('reservations').on('value', (snapshot) => {
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    reservations = Object.keys(data).map(key => ({
+                        ...data[key],
+                        firebaseKey: key
+                    })).sort((a, b) => b.id - a.id);
+                    updateDisplay();
+                }
+            });
+        }
+
+        function updateDisplay() {
+            const totalReserved = reservations.reduce((sum, r) => sum + r.quantity, 0);
+            const available = TOTAL_BOOKS - totalReserved;
+
+            document.getElementById('availableBooks').textContent = available;
+            document.getElementById('reservedBooks').textContent = totalReserved;
+
+            const quantitySelect = document.getElementById('quantity');
+            const currentValue = quantitySelect.value;
+            quantitySelect.innerHTML = '<option value="">Selecciona cantidad</option>';
+            
+            for (let i = 1; i <= Math.min(available, 10); i++) {
+                const option = document.createElement('option');
+                option.value = i;
+                option.textContent = `${i} ${i === 1 ? 'libro' : 'libros'}`;
+                quantitySelect.appendChild(option);
+            }
+
+            if (currentValue && parseInt(currentValue) <= available) {
+                quantitySelect.value = currentValue;
+            }
+
+            displayReservationList();
+
+            const reserveBtn = document.getElementById('reserveBtn');
+            if (available <= 0) {
+                reserveBtn.disabled = true;
+                reserveBtn.textContent = 'AGOTADO';
+            } else {
+                reserveBtn.disabled = false;
+                reserveBtn.textContent = 'RESERVAR AHORA';
+            }
+        }
+
+        function displayReservationList() {
+            const listContainer = document.getElementById('reservationList');
+            
+            if (reservations.length === 0) {
+                listContainer.innerHTML = '<p style="text-align: center; color: #999;">Aún no hay reservas</p>';
+                return;
+            }
+
+            listContainer.innerHTML = reservations.map((r, index) => `
+                <div class="reservation-item">
+                    <div>
+                        <strong>${r.name}</strong><br>
+                        <small style="color: #666;">${r.email} | ${r.phone}</small><br>
+                        <small style="color: #888;">${r.city || ''}, ${r.country || ''}</small>
+                    </div>
+                    <div style="text-align: right;">
+                        <strong style="color: #ff6b6b; font-size: 1.2em;">${r.quantity}</strong>
+                        <small style="display: block; color: #999;">${r.date}</small>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function makeReservation() {
+            const name = document.getElementById('name').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const phone = document.getElementById('phone').value.trim();
+            const country = document.getElementById('country').value.trim();
+            const city = document.getElementById('city').value.trim();
+            const quantity = parseInt(document.getElementById('quantity').value);
+
+            const errorMsg = document.getElementById('errorMessage');
+            errorMsg.style.display = 'none';
+
+            if (!name || !email || !phone || !country || !city || !quantity) {
+                errorMsg.textContent = '⚠️ Por favor completa todos los campos';
+                errorMsg.style.display = 'block';
+                return;
+            }
+
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                errorMsg.textContent = '⚠️ Por favor ingresa un correo electrónico válido';
+                errorMsg.style.display = 'block';
+                return;
+            }
+
+            const totalReserved = reservations.reduce((sum, r) => sum + r.quantity, 0);
+            const available = TOTAL_BOOKS - totalReserved;
+
+            if (quantity > available) {
+                errorMsg.textContent = `⚠️ Solo quedan ${available} libros disponibles`;
+                errorMsg.style.display = 'block';
+                return;
+            }
+
+            const reservation = {
+                id: Date.now(),
+                name,
+                email,
+                phone,
+                country,
+                city,
+                quantity,
+                date: new Date().toLocaleDateString('es-DO', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                })
+            };
+
+            currentReservation = reservation;
+            reservations.unshift(reservation);
+            
+            await saveReservation(reservation);
+            updateDisplay();
+
+            document.getElementById('confirmationDetails').innerHTML = `
+                <p><strong>Nombre:</strong> ${name}</p>
+                <p><strong>Email:</strong> ${email}</p>
+                <p><strong>Teléfono:</strong> ${phone}</p>
+                <p><strong>País:</strong> ${country}</p>
+                <p><strong>Ciudad:</strong> ${city}</p>
+                <p><strong>Cantidad:</strong> ${quantity} ${quantity === 1 ? 'libro' : 'libros'}</p>
+                <p><strong>Fecha:</strong> ${reservation.date}</p>
+            `;
+
+            document.getElementById('confirmationModal').classList.add('active');
+
+            document.getElementById('name').value = '';
+            document.getElementById('email').value = '';
+            document.getElementById('phone').value = '';
+            document.getElementById('country').value = '';
+            document.getElementById('city').value = '';
+            document.getElementById('quantity').value = '';
+        }
+
+        function closeModal() {
+            document.getElementById('confirmationModal').classList.remove('active');
+        }
+
+        window.addEventListener('click', (e) => {
+            const modal = document.getElementById('confirmationModal');
+            if (e.target === modal) {
+                closeModal();
+            }
+        });
+
+        loadReservations();
+    </script>
+</body>
+</html>
